@@ -139,10 +139,26 @@ fn stackmargin(
             )
         }
 
-        let size = (initial - region.base) as usize;
+        // A task's RAM may be split across several contiguous regions (sized
+        // as a sum of powers of two), and its stack can span them. Walk down
+        // through contiguous regions owned by this task, as the kernel does
+        // when it fills the stack with 0xbaddcafe.
+        let mut stack_base = region.base;
+        while let Some((_, prev)) = regions.range(..stack_base).next_back() {
+            if prev.base + prev.size == stack_base
+                && prev.tasks.len() == 1
+                && prev.tasks[0] == module.task
+            {
+                stack_base = prev.base;
+            } else {
+                break;
+            }
+        }
+
+        let size = (initial - stack_base) as usize;
         let mut stack: Vec<u8> = vec![];
         stack.resize_with(size, Default::default);
-        core.read_8(region.base, stack.as_mut_slice())?;
+        core.read_8(stack_base, stack.as_mut_slice())?;
 
         let mut o = 0;
 
@@ -157,7 +173,7 @@ fn stackmargin(
         };
 
         println!("{:2} {:18} 0x{:<8x} {:10} {:10} {:10}",
-            i, module.name, region.base,
+            i, module.name, stack_base,
             size, depth, size - depth);
     }
 
