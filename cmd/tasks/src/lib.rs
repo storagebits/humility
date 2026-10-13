@@ -221,8 +221,11 @@ pub fn print_tasks(
     debug!(log, "task table: {:#x?}, count: {}", base, task_count);
 
     let task_t = hubris.lookup_struct_byname("Task")?;
-    let save = task_t.lookup_member("save")?.offset;
-    let state = hubris.lookup_struct_byname("SavedState")?;
+    let save = task_t.lookup_member("save")?;
+    // See `HubrisArchive::registers`: the type is resolved through `Task.save`
+    // since its name now depends on the kernel's architecture.
+    let state = hubris.lookup_struct(save.goff)?;
+    let save = save.offset;
     let r4 = save + state.lookup_member("r4")?.offset;
 
     let mut found = false;

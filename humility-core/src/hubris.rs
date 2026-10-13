@@ -2694,8 +2694,12 @@ impl HubrisArchive {
         };
 
         let task = self.lookup_struct_byname("Task")?;
-        let save = task.lookup_member("save")?.offset as u32;
-        let state = self.lookup_struct_byname("SavedState")?;
+        let save = task.lookup_member("save")?;
+        // Resolve the saved-state type through `Task.save` rather than by
+        // name: it was `SavedState`, and is per-architecture (e.g.
+        // `ArmMSavedState`) since the kernel's `Arch` trait was introduced.
+        let state = self.lookup_struct(save.goff)?;
+        let save = save.offset as u32;
 
         let mut regs: Vec<u8> = vec![];
         regs.resize_with(state.size, Default::default);
